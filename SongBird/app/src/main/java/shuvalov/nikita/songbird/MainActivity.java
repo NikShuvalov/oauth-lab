@@ -5,6 +5,7 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
@@ -42,6 +43,9 @@ public class MainActivity extends AppCompatActivity {
 
     ArrayList<TweetInfo> mTweetInfo;
 
+    TweetRecyclerAdapater mAdapter;
+    RecyclerView mRecyclerview;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,14 +55,20 @@ public class MainActivity extends AppCompatActivity {
         mSearchButton = (Button) findViewById(R.id.enter_search);
         mUserInput = (EditText) findViewById(R.id.user_prompt);
 
+        mRecyclerView = (RecyclerView)findViewById(R.id.recycler_view);
+
         mTweetInfo = new ArrayList<>();
+
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
+        mAdapter = new TweetRecyclerAdapater(mTweetInfo);
+
+        mRecyclerView.setAdapter(mAdapter);
+        mRecyclerView.setLayoutManager(linearLayoutManager);
 
 
         ConnectivityManager connectivityManager = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
         NetworkInfo info = connectivityManager.getActiveNetworkInfo();
         String concatentatedKeySecret = AppData.CONSUMER_KEY+":"+AppData.CONSUMER_SECRET;
-//        String concatentatedKeySecret = AppData.ACCESS_TOKEN+":"+AppData.ACCESS_TOKEN_SECRET;
-
         String encodedConsumerKey = new String(Base64.encodeBase64(concatentatedKeySecret.getBytes()));
 
         if (info!=null && info.isConnected()){
@@ -89,17 +99,22 @@ public class MainActivity extends AppCompatActivity {
                             if (!response.isSuccessful()) {
                                 throw new IOException();
                             }
-                            Gson tweetGson = new Gson();
+//                            Gson tweetGson = new Gson();
                             try {
                                 JSONArray listOfTweets = new JSONArray(response.body().string());
                                 mTweetInfo.clear();
                                 for (int i =0; i<listOfTweets.length();i++){
-                                    mTweetInfo.add(tweetGson.fromJson(String.valueOf(listOfTweets.getJSONObject(i)),TweetInfo.class));
+                                    mTweetInfo.add(new Gson().fromJson(String.valueOf(listOfTweets.getJSONObject(i)),TweetInfo.class));
                                 }
-                                Log.d("TWEET", mTweetInfo.get(0).getText()+mTweetInfo.get(0).getCreated_at());
                             } catch (JSONException e) {
                                 e.printStackTrace();
                             }
+                            MainActivity.this.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mAdapter.notifyDataSetChanged();
+                                }
+                            });
                         }
                     });
 
@@ -135,7 +150,6 @@ public class MainActivity extends AppCompatActivity {
                 return gson.fromJson(response.body().string(),BearerTokenResponse.class);
 
             } catch (Exception e) {
-                Log.d("JSON", "Something went wrong");
                 e.printStackTrace();
             }
             return null;
@@ -144,7 +158,6 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(BearerTokenResponse s) {
             super.onPostExecute(s);
-            Log.d("ACCESS TOKEN", s.getAccess_token()+ "What");
             mBearerTokenHolder = s;
         }
     }
